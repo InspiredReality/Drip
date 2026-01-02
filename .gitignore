@@ -117,3 +117,7 @@ Desktop.ini
 !README.md
 !IMPLEMENTATION_GUIDE.md
 !QUICK_REFERENCE.md
+DRIP-UNITY/DRIP-UNITY.slnx
+DRIP-UNITY/.vscode/extensions.json
+DRIP-UNITY/.vscode/launch.json
+DRIP-UNITY/.vscode/settings.json
