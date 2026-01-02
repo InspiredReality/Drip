@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#3b82f6">
+    <title>Drop - Online Ball Battle</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            touch-action: pan-y;
+        }
+
+        #app {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            font-size: 48px;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.1s;
+            margin-bottom: 10px;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.secondary {
+            background: #e5e7eb;
+            color: #6b7280;
+        }
+
+        #game-canvas {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            width: 100%;
+            max-height: 60vh;
+            display: block;
+        }
+
+        .game-info {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            color: white;
+            text-align: center;
+        }
+
+        .game-list {
+            list-style: none;
+        }
+
+        .game-item {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .game-item:hover {
+            background: #e5e7eb;
+        }
+
+        .game-item.your-turn {
+            background: #dbeafe;
+            border: 2px solid #3b82f6;
+        }
+
+        .waiting {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .copy-link {
+            background: #f3f4f6;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- MAIN MENU SCREEN -->
+        <div id="menu-screen" class="screen active">
+            <h1>💧 DROP</h1>
+            <div class="card">
+                <h2>Welcome!</h2>
+                <input type="text" id="username" placeholder="Enter your name" maxlength="20">
+                <button onclick="app.createGame()">Create New Game</button>
+                <button onclick="app.showJoinGame()" class="secondary">Join Game</button>
+                <button onclick="app.showMyGames()" class="secondary">My Games</button>
+            </div>
+        </div>
+
+        <!-- JOIN GAME SCREEN -->
+        <div id="join-screen" class="screen">
+            <h1>💧 DROP</h1>
+            <div class="card">
+                <h2>Join Game</h2>
+                <input type="text" id="game-code" placeholder="Enter 6-digit game code" maxlength="6">
+                <button onclick="app.joinGame()">Join</button>
+                <button onclick="app.showMenu()" class="secondary">Back</button>
+            </div>
+        </div>
+
+        <!-- MY GAMES SCREEN -->
+        <div id="games-screen" class="screen">
+            <h1>💧 DROP</h1>
+            <div class="card">
+                <h2>My Games</h2>
+                <div id="games-list"></div>
+                <button onclick="app.showMenu()" class="secondary">Back</button>
+            </div>
+        </div>
+
+        <!-- WAITING SCREEN -->
+        <div id="waiting-screen" class="screen">
+            <h1>💧 DROP</h1>
+            <div class="card">
+                <h2>Waiting for Opponent...</h2>
+                <div class="copy-link">
+                    Game Code: <strong id="share-code"></strong>
+                </div>
+                <p style="text-align: center; color: #6b7280;">Share this code with your friend!</p>
+                <div class="spinner"></div>
+                <button onclick="app.cancelGame()" class="secondary">Cancel</button>
+            </div>
+        </div>
+
+        <!-- GAME SCREEN -->
+        <div id="game-screen" class="screen">
+            <div class="game-info">
+                <div id="game-header"></div>
+                <div id="game-phase"></div>
+            </div>
+            <canvas id="game-canvas"></canvas>
+            <div class="game-info">
+                <div id="game-info-text"></div>
+                <button id="game-action-btn" onclick="app.handleGameAction()">Ready</button>
+                <button onclick="app.quitGame()" class="secondary">Quit Game</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+    <script>
+        // FIREBASE CONFIG - REPLACE WITH YOUR CONFIG
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT.firebaseio.com",
+            projectId: "YOUR_PROJECT",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // APP STATE
+        const app = {
+            screen: 'menu',
+            username: '',
+            userId: '',
+            currentGameId: null,
+            gameListener: null,
+            game: null
+        };
+
+        // Initialize user ID
+        app.userId = localStorage.getItem('dropUserId') || 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('dropUserId', app.userId);
+
+        // NAVIGATION
+        app.showScreen = function(screenName) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenName + '-screen').classList.add('active');
+            app.screen = screenName;
+        };
+
+        app.showMenu = function() {
+            if(app.gameListener) {
+                app.gameListener.off();
+                app.gameListener = null;
+            }
+            app.showScreen('menu');
+        };
+
+        app.showJoinGame = function() {
+            app.showScreen('join');
+        };
+
+        // CREATE GAME
+        app.createGame = async function() {
+            app.username = document.getElementById('username').value.trim();
+            if(!app.username) {
+                alert('Please enter your name');
+                return;
+            }
+
+            const gameCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+            const gameData = {
+                code: gameCode,
+                state: 'waiting',
+                players: {
+                    [app.userId]: {
+                        name: app.username,
+                        balls: 0,
+                        balloons: [5, 5, 5],
+                        crown: -1,
+                        isCreator: true
+                    }
+                },
+                currentPlayer: null,
+                turn: 0,
+                createdAt: Date.now()
+            };
+
+            try {
+                const gameRef = await db.ref('games').push(gameData);
+                app.currentGameId = gameRef.key;
+                document.getElementById('share-code').textContent = gameCode;
+                app.showScreen('waiting');
+                app.waitForOpponent();
+            } catch(error) {
+                alert('Error creating game: ' + error.message);
+            }
+        };
+
+        // WAIT FOR OPPONENT
+        app.waitForOpponent = function() {
+            app.gameListener = db.ref('games/' + app.currentGameId);
+            app.gameListener.on('value', snapshot => {
+                const game = snapshot.val();
+                if(!game) return;
+
+                const playerCount = Object.keys(game.players).length;
+                if(playerCount === 2 && game.state === 'waiting') {
+                    // Start game
+                    db.ref('games/' + app.currentGameId).update({
+                        state: 'crown_select',
+                        currentPlayer: Object.keys(game.players)[0]
+                    });
+                }
+
+                if(game.state !== 'waiting') {
+                    app.startGame(game);
+                }
+            });
+        };
+
+        // JOIN GAME
+        app.joinGame = async function() {
+            app.username = document.getElementById('username').value.trim();
+            const gameCode = document.getElementById('game-code').value.trim().toUpperCase();
+
+            if(!app.username || !gameCode) {
+                alert('Please enter your name and game code');
+                return;
+            }
+
+            try {
+                // Find game by code
+                const snapshot = await db.ref('games').orderByChild('code').equalTo(gameCode).once('value');
+                const games = snapshot.val();
+
+                if(!games) {
+                    alert('Game not found');
+                    return;
+                }
+
+                const gameId = Object.keys(games)[0];
+                const game = games[gameId];
+
+                if(game.state !== 'waiting') {
+                    alert('Game already started');
+                    return;
+                }
+
+                if(Object.keys(game.players).length >= 2) {
+                    alert('Game is full');
+                    return;
+                }
+
+                // Join game
+                await db.ref('games/' + gameId + '/players/' + app.userId).set({
+                    name: app.username,
+                    balls: 0,
+                    balloons: [5, 5, 5],
+                    crown: -1,
+                    isCreator: false
+                });
+
+                app.currentGameId = gameId;
+                app.startGame(game);
+
+            } catch(error) {
+                alert('Error joining game: ' + error.message);
+            }
+        };
+
+        // MY GAMES
+        app.showMyGames = async function() {
+            app.username = document.getElementById('username').value.trim();
+            if(!app.username) {
+                alert('Please enter your name');
+                return;
+            }
+
+            app.showScreen('games');
+            const listEl = document.getElementById('games-list');
+            listEl.innerHTML = '<div class="waiting"><div class="spinner"></div><p>Loading games...</p></div>';
+
+            try {
+                const snapshot = await db.ref('games').orderByChild('createdAt').limitToLast(20).once('value');
+                const games = snapshot.val();
+
+                if(!games) {
+                    listEl.innerHTML = '<p class="waiting">No active games</p>';
+                    return;
+                }
+
+                const myGames = Object.entries(games)
+                    .filter(([id, game]) => game.players && game.players[app.userId])
+                    .reverse();
+
+                if(myGames.length === 0) {
+                    listEl.innerHTML = '<p class="waiting">No games found</p>';
+                    return;
+                }
+
+                listEl.innerHTML = '<ul class="game-list">' + myGames.map(([id, game]) => {
+                    const isMyTurn = game.currentPlayer === app.userId;
+                    const opponent = Object.entries(game.players).find(([pid]) => pid !== app.userId);
+                    const opponentName = opponent ? opponent[1].name : 'Waiting...';
+                    
+                    return `
+                        <li class="game-item ${isMyTurn ? 'your-turn' : ''}" onclick="app.loadGame('${id}')">
+                            <strong>vs ${opponentName}</strong><br>
+                            <small>State: ${game.state} ${isMyTurn ? '- YOUR TURN!' : ''}</small>
+                        </li>
+                    `;
+                }).join('') + '</ul>';
+
+            } catch(error) {
+                listEl.innerHTML = '<div class="error">Error loading games</div>';
+            }
+        };
+
+        // LOAD GAME
+        app.loadGame = async function(gameId) {
+            app.currentGameId = gameId;
+            const snapshot = await db.ref('games/' + gameId).once('value');
+            const game = snapshot.val();
+            app.startGame(game);
+        };
+
+        // START GAME
+        app.startGame = function(gameData) {
+            if(app.gameListener) {
+                app.gameListener.off();
+            }
+
+            app.showScreen('game');
+            app.game = new Game(gameData);
+
+            // Listen for game updates
+            app.gameListener = db.ref('games/' + app.currentGameId);
+            app.gameListener.on('value', snapshot => {
+                const updatedGame = snapshot.val();
+                if(updatedGame && app.game) {
+                    app.game.update(updatedGame);
+                }
+            });
+        };
+
+        // CANCEL GAME
+        app.cancelGame = async function() {
+            if(app.currentGameId) {
+                await db.ref('games/' + app.currentGameId).remove();
+                app.currentGameId = null;
+            }
+            app.showMenu();
+        };
+
+        // QUIT GAME
+        app.quitGame = function() {
+            if(confirm('Are you sure you want to quit this game?')) {
+                app.showMenu();
+            }
+        };
+
+        // Handle game action button
+        app.handleGameAction = function() {
+            if(app.game) {
+                app.game.handleAction();
+            }
+        };
+
+        // GAME CLASS (Similar to local version but with Firebase sync)
+        class Game {
+            constructor(gameData) {
+                this.data = gameData;
+                this.canvas = document.getElementById('game-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                this.canvas.width = Math.min(600, window.innerWidth - 40);
+                this.canvas.height = Math.min(window.innerHeight * 0.6, 600);
+                
+                this.bucket = { 
+                    x: this.canvas.width / 2 - 50, 
+                    y: this.canvas.height - 60, 
+                    width: 100, 
+                    height: 40 
+                };
+                
+                this.balls = [];
+                this.dropTimer = 0;
+                this.dropInterval = null;
+                this.timerInterval = null;
+                
+                this.canvas.addEventListener('mousedown', this.handleInput.bind(this));
+                this.canvas.addEventListener('touchstart', this.handleInput.bind(this));
+                this.canvas.addEventListener('mousemove', this.handleMove.bind(this));
+                this.canvas.addEventListener('touchmove', this.handleMove.bind(this));
+                
+                this.render();
+                this.startGameLoop();
+            }
+
+            update(newData) {
+                this.data = newData;
+                this.render();
+
+                // Start drop phase automatically
+                if(this.data.state === 'drop' && !this.dropInterval && this.data.currentPlayer === app.userId) {
+                    this.startDropPhase();
+                }
+            }
+
+            startGameLoop() {
+                const loop = () => {
+                    if(this.data.state === 'drop') {
+                        this.updatePhysics();
+                    }
+                    this.render();
+                    requestAnimationFrame(loop);
+                };
+                loop();
+            }
+
+            render() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                switch(this.data.state) {
+                    case 'crown_select':
+                        this.renderCrownSelect();
+                        break;
+                    case 'drop':
+                        this.renderDrop();
+                        break;
+                    case 'shoot':
+                        this.renderShoot();
+                        break;
+                    case 'game_over':
+                        this.renderGameOver();
+                        break;
+                }
+
+                this.updateUI();
+            }
+
+            renderCrownSelect() {
+                const myData = this.data.players[app.userId];
+                const balloonY = this.canvas.height / 2;
+                const spacing = this.canvas.width / 4;
+                
+                this.ctx.font = '32px Arial';
+                this.ctx.textAlign = 'center';
+                
+                for(let i = 0; i < 3; i++) {
+                    const x = spacing * (i + 1);
+                    
+                    this.ctx.fillStyle = myData.crown === i ? '#ff69b4' : '#ff6b6b';
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, balloonY, 40, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    if(myData.crown === i) {
+                        this.ctx.fillText('👑', x, balloonY - 60);
+                    }
+                    
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.fillText('5', x, balloonY + 10);
+                }
+            }
+
+            renderDrop() {
+                // Draw balls
+                this.ctx.fillStyle = '#3b82f6';
+                for(const ball of this.balls) {
+                    this.ctx.beginPath();
+                    this.ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+                
+                // Draw bucket
+                this.ctx.fillStyle = '#fbbf24';
+                this.ctx.fillRect(this.bucket.x, this.bucket.y, this.bucket.width, this.bucket.height);
+                
+                // Timer
+                this.ctx.font = 'bold 48px Arial';
+                this.ctx.fillStyle = '#ef4444';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText(this.dropTimer, this.canvas.width / 2, 60);
+            }
+
+            renderShoot() {
+                const opponentId = Object.keys(this.data.players).find(id => id !== app.userId);
+                const opponent = this.data.players[opponentId];
+                const balloonY = 150;
+                const spacing = this.canvas.width / 4;
+                
+                this.ctx.font = '32px Arial';
+                this.ctx.textAlign = 'center';
+                
+                for(let i = 0; i < 3; i++) {
+                    const x = spacing * (i + 1);
+                    const hp = opponent.balloons[i];
+                    
+                    if(hp > 0) {
+                        this.ctx.fillStyle = opponent.crown === i ? '#ff1493' : '#ff6b6b';
+                        this.ctx.beginPath();
+                        this.ctx.arc(x, balloonY, 40, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        
+                        if(opponent.crown === i) {
+                            this.ctx.fillText('👑', x, balloonY - 60);
+                        }
+                        
+                        this.ctx.fillStyle = 'white';
+                        this.ctx.fillText(hp, x, balloonY + 10);
+                    } else {
+                        this.ctx.fillText('💥', x, balloonY);
+                    }
+                }
+                
+                // Draw ammo
+                const myData = this.data.players[app.userId];
+                const ammoY = this.canvas.height - 100;
+                this.ctx.font = '24px Arial';
+                this.ctx.fillStyle = '#3b82f6';
+                
+                for(let i = 0; i < Math.min(myData.balls, 20); i++) {
+                    const x = 20 + (i % 10) * 30;
+                    const y = ammoY + Math.floor(i / 10) * 30;
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 10, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+            }
+
+            renderGameOver() {
+                this.ctx.font = 'bold 48px Arial';
+                this.ctx.fillStyle = '#667eea';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText('GAME OVER', this.canvas.width / 2, this.canvas.height / 2 - 40);
+                
+                const winnerId = this.data.winner;
+                const winner = this.data.players[winnerId];
+                this.ctx.font = '32px Arial';
+                this.ctx.fillText(`${winner.name} Wins!`, this.canvas.width / 2, this.canvas.height / 2 + 20);
+                this.ctx.fillText('👑', this.canvas.width / 2, this.canvas.height / 2 + 80);
+            }
+
+            updateUI() {
+                const myData = this.data.players[app.userId];
+                const opponentId = Object.keys(this.data.players).find(id => id !== app.userId);
+                const opponent = this.data.players[opponentId];
+                
+                const isMyTurn = this.data.currentPlayer === app.userId;
+                
+                document.getElementById('game-header').textContent = 
+                    `You: ${myData.name} vs ${opponent ? opponent.name : 'Waiting...'}`;
+                
+                const actionBtn = document.getElementById('game-action-btn');
+                
+                switch(this.data.state) {
+                    case 'crown_select':
+                        document.getElementById('game-phase').textContent = 'Select your Crown balloon 👑';
+                        document.getElementById('game-info-text').textContent = 
+                            isMyTurn ? 'Tap a balloon to crown it' : 'Waiting for opponent...';
+                        actionBtn.textContent = 'Ready';
+                        actionBtn.disabled = !isMyTurn || myData.crown < 0;
+                        actionBtn.style.display = isMyTurn ? 'block' : 'none';
+                        break;
+                        
+                    case 'drop':
+                        document.getElementById('game-phase').textContent = `DROP PHASE - ${this.dropTimer}s`;
+                        document.getElementById('game-info-text').textContent = 
+                            isMyTurn ? `Balls caught: ${myData.balls}` : 'Opponent is playing...';
+                        actionBtn.style.display = 'none';
+                        break;
+                        
+                    case 'shoot':
+                        document.getElementById('game-phase').textContent = 'SHOOT PHASE';
+                        document.getElementById('game-info-text').textContent = 
+                            isMyTurn ? `Balls: ${myData.balls} - Tap balloons to shoot` : 'Opponent is shooting...';
+                        actionBtn.textContent = 'End Turn';
+                        actionBtn.disabled = !isMyTurn;
+                        actionBtn.style.display = isMyTurn ? 'block' : 'none';
+                        break;
+                        
+                    case 'game_over':
+                        document.getElementById('game-phase').textContent = 'GAME OVER';
+                        actionBtn.textContent = 'Back to Menu';
+                        actionBtn.disabled = false;
+                        actionBtn.style.display = 'block';
+                        break;
+                }
+            }
+
+            handleInput(e) {
+                e.preventDefault();
+                const rect = this.canvas.getBoundingClientRect();
+                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+                const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+                
+                if(this.data.currentPlayer !== app.userId) return;
+                
+                if(this.data.state === 'crown_select') {
+                    this.selectCrown(x, y);
+                } else if(this.data.state === 'shoot') {
+                    this.shootBalloon(x, y);
+                }
+            }
+
+            handleMove(e) {
+                if(this.data.state !== 'drop' || this.data.currentPlayer !== app.userId) return;
+                
+                e.preventDefault();
+                const rect = this.canvas.getBoundingClientRect();
+                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+                
+                this.bucket.x = Math.max(0, Math.min(this.canvas.width - this.bucket.width, x - this.bucket.width / 2));
+            }
+
+            async selectCrown(x, y) {
+                const spacing = this.canvas.width / 4;
+                const balloonY = this.canvas.height / 2;
+                
+                for(let i = 0; i < 3; i++) {
+                    const bx = spacing * (i + 1);
+                    const dist = Math.sqrt((x - bx) ** 2 + (y - balloonY) ** 2);
+                    
+                    if(dist < 40) {
+                        await db.ref(`games/${app.currentGameId}/players/${app.userId}/crown`).set(i);
+                        break;
+                    }
+                }
+            }
+
+            async handleAction() {
+                switch(this.data.state) {
+                    case 'crown_select':
+                        // Check if both players selected crowns
+                        const allSelected = Object.values(this.data.players).every(p => p.crown >= 0);
+                        if(allSelected) {
+                            await db.ref(`games/${app.currentGameId}`).update({
+                                state: 'drop',
+                                currentPlayer: Object.keys(this.data.players)[0]
+                            });
+                        }
+                        break;
+                        
+                    case 'shoot':
+                        // End turn
+                        const players = Object.keys(this.data.players);
+                        const nextPlayer = players.find(p => p !== app.userId);
+                        
+                        await db.ref(`games/${app.currentGameId}`).update({
+                            state: 'drop',
+                            currentPlayer: nextPlayer,
+                            turn: this.data.turn + 1
+                        });
+                        break;
+                        
+                    case 'game_over':
+                        app.showMenu();
+                        break;
+                }
+            }
+
+            startDropPhase() {
+                this.dropTimer = 15;
+                this.balls = [];
+                
+                // Spawn balls
+                this.dropInterval = setInterval(() => {
+                    if(this.data.state !== 'drop') {
+                        clearInterval(this.dropInterval);
+                        return;
+                    }
+                    
+                    this.balls.push({
+                        x: Math.random() * this.canvas.width,
+                        y: -20,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: 0,
+                        radius: 10
+                    });
+                }, 500);
+                
+                // Timer
+                this.timerInterval = setInterval(async () => {
+                    this.dropTimer--;
+                    
+                    if(this.dropTimer <= 0) {
+                        clearInterval(this.dropInterval);
+                        clearInterval(this.timerInterval);
+                        
+                        // Update balls collected
+                        await db.ref(`games/${app.currentGameId}/players/${app.userId}/balls`)
+                            .set(this.data.players[app.userId].balls);
+                        
+                        // Move to shoot phase
+                        await db.ref(`games/${app.currentGameId}/state`).set('shoot');
+                    }
+                }, 1000);
+            }
+
+            updatePhysics() {
+                for(let i = this.balls.length - 1; i >= 0; i--) {
+                    const ball = this.balls[i];
+                    
+                    ball.vy += 0.5;
+                    ball.y += ball.vy;
+                    ball.x += ball.vx;
+                    
+                    // Bucket collision
+                    if(ball.y + ball.radius >= this.bucket.y &&
+                       ball.y - ball.radius <= this.bucket.y + this.bucket.height &&
+                       ball.x >= this.bucket.x &&
+                       ball.x <= this.bucket.x + this.bucket.width) {
+                        this.data.players[app.userId].balls++;
+                        this.balls.splice(i, 1);
+                    }
+                    else if(ball.y > this.canvas.height + 50) {
+                        this.balls.splice(i, 1);
+                    }
+                }
+            }
+
+            async shootBalloon(x, y) {
+                if(this.data.players[app.userId].balls <= 0) return;
+                
+                const spacing = this.canvas.width / 4;
+                const balloonY = 150;
+                
+                for(let i = 0; i < 3; i++) {
+                    const bx = spacing * (i + 1);
+                    const dist = Math.sqrt((x - bx) ** 2 + (y - balloonY) ** 2);
+                    
+                    if(dist < 40) {
+                        const opponentId = Object.keys(this.data.players).find(id => id !== app.userId);
+                        const opponent = this.data.players[opponentId];
+                        
+                        if(opponent.balloons[i] <= 0) return;
+                        
+                        // Spend ball and damage balloon
+                        const myData = this.data.players[app.userId];
+                        await db.ref(`games/${app.currentGameId}/players/${app.userId}/balls`)
+                            .set(myData.balls - 1);
+                        
+                        await db.ref(`games/${app.currentGameId}/players/${opponentId}/balloons/${i}`)
+                            .set(opponent.balloons[i] - 1);
+                        
+                        // Check if crown was popped
+                        if(i === opponent.crown && opponent.balloons[i] - 1 <= 0) {
+                            await db.ref(`games/${app.currentGameId}`).update({
+                                state: 'game_over',
+                                winner: app.userId
+                            });
+                        }
+                        
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Register service worker
+        if('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js');
+        }
+    </script>
+</body>
+</html>
