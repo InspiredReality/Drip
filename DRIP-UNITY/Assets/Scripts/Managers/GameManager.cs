@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Drip.Data;        // ← Make sure this is here
+using Drip.Phases;  
 
 namespace Drip.Managers
 {

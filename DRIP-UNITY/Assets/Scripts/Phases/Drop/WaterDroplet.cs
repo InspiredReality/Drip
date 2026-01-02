@@ -25,7 +25,7 @@ namespace Drip.Phases.Drop
         private void Start()
         {
             // Apply initial downward velocity
-            rb.velocity = Vector3.down * fallSpeed;
+            rb.linearVelocity = Vector3.down * fallSpeed;
         }
 
         private void Update()

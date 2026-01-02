@@ -35,7 +35,7 @@ namespace Drip.Phases.Douse
 
         public void Launch(Vector3 direction)
         {
-            rb.velocity = direction.normalized * speed;
+            rb.linearVelocity = direction.normalized * speed;
         }
 
         private void OnTriggerEnter(Collider other)
